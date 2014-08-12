@@ -18,16 +18,13 @@ $context->fromRequest($request);
 $matcher = new Routing\Matcher\UrlMatcher($routes, $context);
 
 try{
-	// the $matcher->match returns an array. It will always contain at least one element: _route => hello
-	// if a route is defined to have additional parameters (hello/{name}), and a URL of hello/Alex is in the Request...
-	// ...then the returned array will also contain an element with a key of 'name' and a value of 'Alex'
-	// once again, by passing this array to extract(), we convert the keys to variable names, so $name can be used in the template
-	extract($matcher->match($request->getPathInfo()), EXTR_SKIP);
-	ob_start();
-	include sprintf(__DIR__.'/../src/pages/%s.php', $_route);
-
-	// send the buffered PHP output from the script, as the Response content. Clean from the buffer afterwards
-	$response->setContent(ob_get_clean());
+	// instead of extracting the array that is returned from $matcher->match(...), we will set it as an 'bolt-on' to the Request
+	// we could retrieve a value with $request->attributes->get('_route');
+	$request->attributes->add($matcher->match($request->getPathInfo()));
+	
+	// after adding the value to each of our routes, _controller has a callable function as it's value, which returns a Response...
+	// ...so we can pass its value to call_user_func, and pass in the $request to that function too
+	$response = call_user_func($request->attributes->get('_controller'), $request);
 } catch (Routing\Exception\ResourceNotFoundException $e){
 	$response = new Response('Page not found', 404);
 } catch (Exception $e){
