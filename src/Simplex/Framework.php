@@ -7,16 +7,19 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Matcher\UrlMatcherInterface;
 use Symfony\Component\Routing\Exception\ResourceNotFoundException;
 use Symfony\Component\HttpKernel\Controller\ControllerResolverInterface;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 
 class Framework
 {
 	protected $matcher;
 	protected $resolver;
+	protected $dispatcher;
 
-	public function __construct(UrlMatcherInterface $matcher, ControllerResolverInterface $resolver)
+	public function __construct(UrlMatcherInterface $matcher, ControllerResolverInterface $resolver, EventDispatcher $dispatcher)
 	{
 		$this->matcher = $matcher;
 		$this->resolver = $resolver;
+		$this->dispatcher = $dispatcher;
 	}
 
 	public function handle(Request $request)
@@ -34,11 +37,16 @@ class Framework
 			$arguments = $this->resolver->getArguments($request, $controller);
 		
 			// we now simply call the class method, and pass to it the URL arguments
-			return call_user_func_array($controller, $arguments);
+			$response = call_user_func_array($controller, $arguments);
 		} catch (ResourceNotFoundException $e){
-			return new Response('Page not found', 404);
+			$response = new Response('Page not found', 404);
 		} catch (Exception $e){
-			return new Response($e->getMessage(), 500);
+			$response = new Response($e->getMessage(), 500);
 		}
+
+		// dispatch a response event prior to returning the response
+		$this->dispatcher->dispatch('response', new ResponseEvent($response, $request));		
+
+		return $response;
 	}
 }
