@@ -18,6 +18,7 @@ class ContentLengthListener implements EventSubscriberInterface
         // interface method
         public static function getSubscribedEvents()
         {
+        		// non negative, to execute last, to ensure the content length is correct
                 return array('response' => array('onResponse', -255));
         }
 }
